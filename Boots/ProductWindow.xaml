@@ -5,6 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" Style="{StaticResource Windows}"
         Title="Каталог товаров" Height="800" Width="1200">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="ProductDetailsVisibility"/>
+    </Window.Resources>
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -60,10 +64,15 @@
                         <Border Margin="0,0,8,10"
                                 Padding="15"
                                 BorderBrush="#70B2AF"
-                                BorderThickness="1">
+                                BorderThickness="1"
+                                MouseLeftButtonUp="ProductCard_MouseLeftButtonUp">
                             <Border.Style>
                                 <Style TargetType="Border">
+                                    <Setter Property="Background" Value="Transparent"/>
                                     <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CanOpenProduct, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding HasLowStock}" Value="True">
                                             <Setter Property="Background" Value="#FADBD8"/>
                                         </DataTrigger>
@@ -136,6 +145,13 @@
                                     <TextBlock Text="{Binding Price, StringFormat={}{0:N2}}"
                                                FontWeight="SemiBold"
                                                TextAlignment="Right"/>
+
+                                    <Button Content="Подробнее"
+                                            Margin="0,8,0,0"
+                                            Padding="10,3"
+                                            FontSize="16"
+                                            Click="ProductDetails_Click"
+                                            Visibility="{Binding CanOpenProduct, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ProductDetailsVisibility}}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

@@ -11,6 +11,7 @@ public class AppDBContext : DbContext
     public DbSet<Manufacturers> Manufacturers => Set<Manufacturers>();
     public DbSet<Users> Users => Set<Users>();
     public DbSet<StockItems> StockItems => Set<StockItems>();
+    public DbSet<Sizes> Sizes => Set<Sizes>();
     public DbSet<Orders> Orders => Set<Orders>();
     public DbSet<OrderItems> OrderItems => Set<OrderItems>();
 
@@ -52,6 +53,10 @@ public class AppDBContext : DbContext
         user.Property(item => item.Login).HasMaxLength(100);
 
         modelBuilder.Entity<StockItems>().HasKey(stock => stock.StockItemId);
+
+        modelBuilder.Entity<Sizes>()
+            .ToTable("Sizes", "dbo")
+            .HasKey(size => size.SizeId);
 
         modelBuilder.Entity<Orders>()
             .ToTable("Orders", "dbo")

@@ -1,46 +1,48 @@
 using Boots.Data;
+using Boots.helper;
 using Boots.Models;
 using Boots.Static;
+using Microsoft.Data.SqlClient;
 using System.Windows;
+using System.Windows.Input;
 
 namespace Boots
 {
     public partial class ProductWindow : Window
     {
+        private readonly Helper _messages = new();
         private List<ProductCard> _products = [];
 
-        public ProductWindow()
+        public bool CanOpenProduct { get; }
+
+        public ProductWindow() : this(null)
         {
+        }
+
+        public ProductWindow(Users? user)
+        {
+            CanOpenProduct = user is not null;
             InitializeComponent();
 
             SearchBox.TextChanged += (_, _) => ApplyFilters();
             PriceSort.SelectionChanged += (_, _) => ApplyFilters();
 
             FullUserName.Text = "Гость";
-            LoadProducts(DateOnly.FromDateTime(DateTime.Today));
-        }
 
-        public ProductWindow(Users? user) : this()
-        {
             if (user is not null)
             {
                 ProductFilters.Visibility = Visibility.Visible;
                 FullUserName.Text = $"{user.LastName} {user.FirstName} {user.Patronymic}".TrimEnd();
             }
+
+            LoadProducts(DateOnly.FromDateTime(DateTime.Today));
         }
 
         private void LoadProducts(DateOnly calculationDate)
         {
             using var db = new AppDBContext();
 
-            var currentMonthStart = new DateOnly(calculationDate.Year, calculationDate.Month, 1);
-            var previousMonthStart = currentMonthStart.AddMonths(-1);
-
-            var orderedProductIds =
-                from item in db.OrderItems
-                join order in db.Orders on item.OrderId equals order.OrderId
-                where order.OrderDate >= previousMonthStart && order.OrderDate < currentMonthStart
-                select item.ProductId;
+            var orderedProductIds = ProductPricing.GetOrderedProductIds(db, calculationDate);
 
             var products = (
                 from product in db.Products
@@ -53,6 +55,7 @@ namespace Boots
                 orderby product.ProductName
                 select new
                 {
+                    product.ProductId,
                     product.ProductName,
                     product.ImageFile,
                     product.Description,
@@ -66,12 +69,11 @@ namespace Boots
 
             _products = products.Select(product => new ProductCard
             {
+                ProductId = product.ProductId,
                 ProductName = product.ProductName,
                 Description = product.Description,
                 OriginalPrice = product.Price,
-                Price = product.HasDiscount
-                    ? decimal.Round(product.Price * 0.75m, 2, MidpointRounding.AwayFromZero)
-                    : product.Price,
+                Price = ProductPricing.GetPrice(product.Price, product.HasDiscount),
                 HasDiscount = product.HasDiscount,
                 ManufacturerName = product.ManufacturerName,
                 Quantity = product.Quantity,
@@ -84,6 +86,41 @@ namespace Boots
             ApplyFilters();
         }
 
+        private void ProductCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            OpenProduct((FrameworkElement)sender);
+        }
+
+        private void ProductDetails_Click(object sender, RoutedEventArgs e)
+        {
+            OpenProduct((FrameworkElement)sender);
+        }
+
+        private void OpenProduct(FrameworkElement source)
+        {
+            if (!CanOpenProduct || source.DataContext is not ProductCard product)
+            {
+                return;
+            }
+
+            try
+            {
+                var details = new ProductDetailsWindow { Owner = this };
+
+                if (!details.LoadProduct(product.ProductId))
+                {
+                    _messages.ShowInfo("Товар больше недоступен в каталоге.");
+                    return;
+                }
+
+                details.ShowDialog();
+            }
+            catch (SqlException)
+            {
+                _messages.ShowErr("Не удалось загрузить сведения о товаре. Проверь подключение к базе и повтори попытку.");
+            }
+        }
+
         private void LogOut_Click(object sender, RoutedEventArgs e)
         {
             CurrentUserSession.CurrentUser = null;
@@ -93,6 +130,7 @@ namespace Boots
 
         private sealed class ProductCard
         {
+            public int ProductId { get; init; }
             public string ProductName { get; init; } = string.Empty;
             public string? Description { get; init; }
             public decimal OriginalPrice { get; init; }

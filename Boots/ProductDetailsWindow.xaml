@@ -1,0 +1,84 @@
+<Window x:Class="Boots.ProductDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Сведения о товаре"
+        Style="{StaticResource Windows}"
+        SizeToContent="Height"
+        Width="780"
+        MinWidth="550"
+        MaxHeight="760"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,12,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Height="180"
+                            VerticalAlignment="Top"
+                            BorderBrush="#70B2AF"
+                            BorderThickness="1"
+                            Padding="10">
+                        <Image x:Name="ProductImage" Source="{Binding ImagePath}" Stretch="Uniform"/>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Margin="20,0,0,0">
+                        <TextBlock x:Name="ProductTitle"
+                                   Text="{Binding ProductName}"
+                                   FontSize="28"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding ManufacturerName, StringFormat='Производитель: {0}'}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,8,0,0"/>
+                        <TextBlock Text="{Binding Category}"
+                                   Foreground="#385D5B"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"/>
+                        <TextBlock x:Name="ProductPrice"
+                                   Text="{Binding Price, StringFormat='Цена: {0:N2} ₽'}"
+                                   FontWeight="SemiBold"
+                                   Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="Состав" FontWeight="SemiBold" Margin="0,16,0,4"/>
+                <TextBlock Text="{Binding Composition}" TextWrapping="Wrap"/>
+
+                <TextBlock Text="Описание" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+
+                <TextBlock Text="Размеры и наличие" FontWeight="SemiBold" Margin="0,16,0,6"/>
+                <TextBlock x:Name="SizesStatus" Visibility="Collapsed"/>
+                <DataGrid x:Name="SizeGrid"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          MaxHeight="210"
+                          FontFamily="Times New Roman"
+                          FontSize="16">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Размер" Binding="{Binding SizeValue}" Width="*"/>
+                        <DataGridTextColumn Header="Доступно пар" Binding="{Binding AvailableQuantity}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="1"
+                Content="Назад"
+                HorizontalAlignment="Left"
+                Margin="0,16,0,0"
+                Padding="16,4"
+                IsCancel="True"/>
+    </Grid>
+</Window>
