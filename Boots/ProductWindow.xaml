@@ -13,6 +13,11 @@
         </Grid.RowDefinitions>
 
         <Grid Margin="0,0,0,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -26,6 +31,26 @@
                        Grid.Column="1"
                        VerticalAlignment="Center"
                        Margin="16,0,0,0"/>
+
+            <StackPanel x:Name="ProductFilters"
+                        Grid.Row="1"
+                        Grid.ColumnSpan="2"
+                        Orientation="Horizontal"
+                        Margin="0,12,0,0"
+                        Visibility="Collapsed">
+                <TextBlock Text="Поиск"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"/>
+                <TextBox x:Name="SearchBox"
+                         Width="260"
+                         Margin="0,0,16,0"/>
+
+                <ComboBox x:Name="PriceSort" Width="230" SelectedIndex="0">
+                    <ComboBoxItem Content="По названию"/>
+                    <ComboBoxItem Content="Сначала дешевле"/>
+                    <ComboBoxItem Content="Сначала дороже"/>
+                </ComboBox>
+            </StackPanel>
         </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
@@ -91,7 +116,23 @@
                                 <StackPanel Grid.Column="2"
                                             HorizontalAlignment="Right"
                                             VerticalAlignment="Center">
-                                    <TextBlock Text="Цена" FontSize="16" TextAlignment="Right"/>
+                                    <TextBlock Text="Цена, ₽" FontSize="16" TextAlignment="Right"/>
+                                    <TextBlock Text="{Binding OriginalPrice, StringFormat={}{0:N2}}"
+                                               TextDecorations="Strikethrough"
+                                               Foreground="#575757"
+                                               FontSize="16"
+                                               TextAlignment="Right">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasDiscount}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <TextBlock Text="{Binding Price, StringFormat={}{0:N2}}"
                                                FontWeight="SemiBold"
                                                TextAlignment="Right"/>

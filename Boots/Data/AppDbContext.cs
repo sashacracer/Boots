@@ -11,6 +11,8 @@ public class AppDBContext : DbContext
     public DbSet<Manufacturers> Manufacturers => Set<Manufacturers>();
     public DbSet<Users> Users => Set<Users>();
     public DbSet<StockItems> StockItems => Set<StockItems>();
+    public DbSet<Orders> Orders => Set<Orders>();
+    public DbSet<OrderItems> OrderItems => Set<OrderItems>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -50,6 +52,15 @@ public class AppDBContext : DbContext
         user.Property(item => item.Login).HasMaxLength(100);
 
         modelBuilder.Entity<StockItems>().HasKey(stock => stock.StockItemId);
+
+        modelBuilder.Entity<Orders>()
+            .ToTable("Orders", "dbo")
+            .HasKey(order => order.OrderId);
+
+        var orderItem = modelBuilder.Entity<OrderItems>();
+        orderItem.ToTable("OrderItems", "dbo");
+        orderItem.HasKey(item => item.OrderItemId);
+        orderItem.Property(item => item.UnitPrice).HasPrecision(18, 2);
 
     }
 }
