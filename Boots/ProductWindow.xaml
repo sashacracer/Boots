@@ -160,6 +160,14 @@
             </ItemsControl>
         </ScrollViewer>
 
+        <Button x:Name="OrdersButton" Content="Заказы"
+                Grid.Row="2"
+                HorizontalAlignment="Right"
+                Margin="0,12,0,0"
+                Padding="16,4"
+                Visibility="Collapsed"
+                Click="Orders_Click"/>
+
         <Button Name="LogOut" Content="Выйти"
                 Grid.Row="2"
                 HorizontalAlignment="Left"

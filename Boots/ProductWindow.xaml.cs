@@ -10,7 +10,12 @@ namespace Boots
 {
     public partial class ProductWindow : Window
     {
+        private const int AdministratorRoleId = 1;
+        private const int ManagerRoleId = 2;
+        private const int CustomerRoleId = 3;
+
         private readonly Helper _messages = new();
+        private readonly bool _canViewOrders;
         private List<ProductCard> _products = [];
 
         public bool CanOpenProduct { get; }
@@ -22,6 +27,7 @@ namespace Boots
         public ProductWindow(Users? user)
         {
             CanOpenProduct = user is not null;
+            _canViewOrders = user?.RoleId is AdministratorRoleId or ManagerRoleId;
             InitializeComponent();
 
             SearchBox.TextChanged += (_, _) => ApplyFilters();
@@ -32,9 +38,20 @@ namespace Boots
             if (user is not null)
             {
                 ProductFilters.Visibility = Visibility.Visible;
-                FullUserName.Text = $"{user.LastName} {user.FirstName} {user.Patronymic}".TrimEnd();
+
+                var roleName = user.RoleId switch
+                {
+                    AdministratorRoleId => "Администратор",
+                    ManagerRoleId => "Менеджер",
+                    CustomerRoleId => "Авторизованный пользователь",
+                    _ => "Неизвестная роль"
+                };
+
+                var fullName = $"{user.LastName} {user.FirstName} {user.Patronymic}".TrimEnd();
+                FullUserName.Text = $"{fullName} ({roleName})";
             }
 
+            OrdersButton.Visibility = _canViewOrders ? Visibility.Visible : Visibility.Collapsed;
             LoadProducts(DateOnly.FromDateTime(DateTime.Today));
         }
 
@@ -118,6 +135,24 @@ namespace Boots
             catch (SqlException)
             {
                 _messages.ShowErr("Не удалось загрузить сведения о товаре. Проверь подключение к базе и повтори попытку.");
+            }
+        }
+
+        private void Orders_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_canViewOrders)
+            {
+                return;
+            }
+
+            try
+            {
+                var orders = new OrdersWindow { Owner = this };
+                orders.ShowDialog();
+            }
+            catch (SqlException)
+            {
+                _messages.ShowErr("Не удалось загрузить заказы. Проверь подключение к базе и повтори попытку.");
             }
         }
 
