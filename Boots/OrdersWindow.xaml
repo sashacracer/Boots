@@ -9,7 +9,8 @@
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="3*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -20,6 +21,9 @@
 
         <DataGrid x:Name="OrdersGrid"
                   Grid.Row="1"
+                  SelectionMode="Single"
+                  SelectedValuePath="OrderId"
+                  SelectionChanged="OrdersGrid_SelectionChanged"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserAddRows="False"
@@ -33,7 +37,40 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Button Grid.Row="2"
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Состав заказа" FontWeight="SemiBold" Margin="0,0,0,6"/>
+
+            <DataGrid x:Name="OrderItemsGrid"
+                      Grid.Row="1"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      HeadersVisibility="Column"
+                      FontFamily="Times New Roman"
+                      FontSize="16">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Модель" Binding="{Binding ProductName}" Width="2*"/>
+                    <DataGridTextColumn Header="Производитель" Binding="{Binding ManufacturerName}" Width="*"/>
+                    <DataGridTextColumn Header="Размер" Binding="{Binding SizeValue}" Width="70"/>
+                    <DataGridTextColumn Header="Пар" Binding="{Binding Quantity}" Width="55"/>
+                    <DataGridTextColumn Header="Цена за пару, ₽" Binding="{Binding UnitPrice, StringFormat=N2}" Width="130"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <TextBlock x:Name="OrderTotalText"
+                       Grid.Row="2"
+                       Text="Выбери заказ в верхней таблице."
+                       FontWeight="SemiBold"
+                       Margin="0,8,0,0"/>
+        </Grid>
+
+        <Button Grid.Row="3"
                 Content="Назад"
                 IsCancel="True"
                 HorizontalAlignment="Left"
