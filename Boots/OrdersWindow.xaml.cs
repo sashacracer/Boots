@@ -1,5 +1,6 @@
 using Boots.Data;
 using Boots.helper;
+using Boots.Models;
 using Microsoft.Data.SqlClient;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,11 +10,27 @@ namespace Boots;
 public partial class OrdersWindow : Window
 {
     private readonly Helper _messages = new();
+    private readonly Users? _orderOperator;
 
-    public OrdersWindow()
+    public OrdersWindow() : this(null)
     {
+    }
+
+    internal OrdersWindow(Users? orderOperator)
+    {
+        _orderOperator = orderOperator;
         InitializeComponent();
 
+        if (_orderOperator?.RoleId is 1 or 2)
+        {
+            AddOrderButton.Visibility = Visibility.Visible;
+        }
+
+        LoadOrders();
+    }
+
+    private void LoadOrders()
+    {
         using var db = new AppDBContext();
 
         var orders = (
@@ -36,9 +53,28 @@ public partial class OrdersWindow : Window
             CustomerName = $"{order.LastName} {order.FirstName} {order.Patronymic}".TrimEnd()
         }).ToList();
 
-        if (orders.Count == 0)
+        EmptyOrdersText.Visibility = orders.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void AddOrder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_orderOperator is not { RoleId: 1 or 2 })
         {
-            EmptyOrdersText.Visibility = Visibility.Visible;
+            return;
+        }
+
+        try
+        {
+            var createOrder = new OrderCreateWindow(_orderOperator) { Owner = this };
+            if (createOrder.ShowDialog() == true)
+            {
+                LoadOrders();
+                OrdersGrid.SelectedValue = createOrder.CreatedOrderId;
+            }
+        }
+        catch (SqlException)
+        {
+            _messages.ShowErr("Не удалось открыть форму заказа или обновить список. Проверь подключение к базе.");
         }
     }
 

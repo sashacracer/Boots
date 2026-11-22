@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 
 namespace Boots.helper
 {
@@ -16,6 +16,12 @@ namespace Boots.helper
                 MessageBoxImage.Error);
 
         }
+        public bool Confirm(string message)
+        {
+            return MessageBox.Show(message, "Подтверждение", MessageBoxButton.YesNo,
+                MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
+        }
+
         public void ShowWarning(string message)
         {
             MessageBox.Show(message, "Внимание", MessageBoxButton.OK,

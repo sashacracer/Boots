@@ -16,6 +16,8 @@ namespace Boots
 
         private readonly Helper _messages = new();
         private readonly bool _canViewOrders;
+        private readonly Users? _user;
+        private readonly bool _selectForOrder;
         private List<ProductCard> _products = [];
 
         public bool CanOpenProduct { get; }
@@ -24,10 +26,16 @@ namespace Boots
         {
         }
 
-        public ProductWindow(Users? user)
+        public ProductWindow(Users? user) : this(user, selectForOrder: false)
         {
+        }
+
+        internal ProductWindow(Users? user, bool selectForOrder)
+        {
+            _user = user;
+            _selectForOrder = selectForOrder;
             CanOpenProduct = user is not null;
-            _canViewOrders = user?.RoleId is AdministratorRoleId or ManagerRoleId;
+            _canViewOrders = !selectForOrder && user?.RoleId is AdministratorRoleId or ManagerRoleId;
             InitializeComponent();
 
             SearchBox.TextChanged += (_, _) => ApplyFilters();
@@ -52,8 +60,20 @@ namespace Boots
             }
 
             OrdersButton.Visibility = _canViewOrders ? Visibility.Visible : Visibility.Collapsed;
+            AddProductButton.Visibility = CanAddProducts ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_selectForOrder)
+            {
+                Title = "Выбор товара";
+                LogOut.Content = "Назад";
+            }
+
             LoadProducts(DateOnly.FromDateTime(DateTime.Today));
         }
+
+        internal OrderDraftLine? SelectedOrderLine { get; private set; }
+
+        private bool CanAddProducts => !_selectForOrder && _user?.RoleId == AdministratorRoleId;
 
         private void LoadProducts(DateOnly calculationDate)
         {
@@ -97,7 +117,7 @@ namespace Boots
                 StockLabel = product.Quantity > 5 ? "много" : "мало",
                 HasLowStock = product.Quantity <= 3,
                 Category = $"{product.CategoryName} / {product.SubcategoryName}",
-                ImagePath = $"/Boots;component/res/{product.ImageFile ?? "Чудо Обувь.png"}"
+                ImagePath = ProductImages.GetSource(product.ImageFile)
             }).ToList();
 
             ApplyFilters();
@@ -124,17 +144,42 @@ namespace Boots
             {
                 var details = new ProductDetailsWindow { Owner = this };
 
-                if (!details.LoadProduct(product.ProductId))
+                if (!details.LoadProduct(product.ProductId, _selectForOrder))
                 {
                     _messages.ShowInfo("Товар больше недоступен в каталоге.");
                     return;
                 }
 
-                details.ShowDialog();
+                if (details.ShowDialog() == true && _selectForOrder)
+                {
+                    SelectedOrderLine = details.SelectedOrderLine;
+                    DialogResult = true;
+                }
             }
             catch (SqlException)
             {
                 _messages.ShowErr("Не удалось загрузить сведения о товаре. Проверь подключение к базе и повтори попытку.");
+            }
+        }
+
+        private void AddProduct_Click(object sender, RoutedEventArgs e)
+        {
+            if (!CanAddProducts)
+            {
+                return;
+            }
+
+            try
+            {
+                var window = new ProductCreateWindow { Owner = this };
+                if (window.ShowDialog() == true)
+                {
+                    LoadProducts(DateOnly.FromDateTime(DateTime.Today));
+                }
+            }
+            catch (SqlException)
+            {
+                _messages.ShowErr("Не удалось открыть форму товара или обновить каталог. Проверь подключение к базе.");
             }
         }
 
@@ -147,7 +192,7 @@ namespace Boots
 
             try
             {
-                var orders = new OrdersWindow { Owner = this };
+                var orders = new OrdersWindow(_user) { Owner = this };
                 orders.ShowDialog();
             }
             catch (SqlException)
@@ -158,6 +203,12 @@ namespace Boots
 
         private void LogOut_Click(object sender, RoutedEventArgs e)
         {
+            if (_selectForOrder)
+            {
+                Close();
+                return;
+            }
+
             CurrentUserSession.CurrentUser = null;
             new MainWindow().Show();
             Close();
