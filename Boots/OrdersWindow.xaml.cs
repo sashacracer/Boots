@@ -13,6 +13,8 @@ public partial class OrdersWindow : Window
     private readonly Helper _messages = new();
     private readonly Users? _orderOperator;
 
+    private bool CanEditOrders => _orderOperator?.RoleId == 1;
+
     public OrdersWindow() : this(null)
     {
     }
@@ -28,6 +30,7 @@ public partial class OrdersWindow : Window
             DeleteOrderButton.Visibility = Visibility.Visible;
         }
 
+        OrderEditPanel.Visibility = CanEditOrders ? Visibility.Visible : Visibility.Collapsed;
         LoadOrders();
     }
 
@@ -50,12 +53,10 @@ public partial class OrdersWindow : Window
                 customer.Patronymic
             }).ToList();
 
-        OrdersGrid.ItemsSource = orders.Select(order => new
-        {
+        OrdersGrid.ItemsSource = orders.Select(order => new OrderSummary(
             order.OrderId,
             order.OrderDate,
-            CustomerName = $"{order.LastName} {order.FirstName} {order.Patronymic}".TrimEnd()
-        }).ToList();
+            $"{order.LastName} {order.FirstName} {order.Patronymic}".TrimEnd())).ToList();
 
         EmptyOrdersText.Visibility = orders.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -117,6 +118,89 @@ public partial class OrdersWindow : Window
         }
     }
 
+    private void SaveDate_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CanEditOrders || OrdersGrid.SelectedValue is not int orderId)
+        {
+            return;
+        }
+
+        if (OrderDatePicker.SelectedDate is not DateTime selectedDate)
+        {
+            _messages.ShowWarning("Выбери дату заказа.");
+            return;
+        }
+
+        var saved = false;
+        try
+        {
+            using var db = new AppDBContext();
+            saved = OrderEditing.UpdateDate(db, orderId, DateOnly.FromDateTime(selectedDate));
+            RefreshEditedOrder(orderId);
+
+            if (!saved)
+            {
+                _messages.ShowInfo("Заказ больше недоступен. Список обновлён.");
+            }
+        }
+        catch (SqlException)
+        {
+            _messages.ShowErr(saved
+                ? "Дата сохранена, но список не удалось обновить. Открой окно заказов заново."
+                : "Не удалось сохранить дату заказа. Проверь подключение к базе и повтори попытку.");
+        }
+    }
+
+    private void DeleteOrderItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CanEditOrders || OrdersGrid.SelectedValue is not int orderId ||
+            OrderItemsGrid.SelectedValue is not int orderItemId)
+        {
+            return;
+        }
+
+        if (!_messages.Confirm("Удалить выбранную позицию из заказа? Пары вернутся на склад."))
+        {
+            return;
+        }
+
+        var deleted = false;
+        try
+        {
+            using var db = new AppDBContext();
+            deleted = OrderEditing.DeleteItem(db, orderId, orderItemId);
+            RefreshEditedOrder(orderId);
+
+            if (!deleted)
+            {
+                _messages.ShowInfo("Эта позиция уже недоступна. Список обновлён.");
+            }
+        }
+        catch (Exception exception) when (exception is SqlException or DbUpdateException
+            or InvalidOperationException or OverflowException)
+        {
+            _messages.ShowErr(deleted
+                ? "Позиция удалена, но список не удалось обновить. Открой окно заказов заново."
+                : "Не удалось удалить позицию и вернуть пары на склад. Проверь состояние заказа.");
+        }
+    }
+
+    private void RefreshEditedOrder(int orderId)
+    {
+        OrdersChanged = true;
+        OrdersGrid.SelectedIndex = -1;
+        LoadOrders();
+        OrdersGrid.SelectedValue = orderId;
+    }
+
+    private void OrderItemsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source == OrderItemsGrid)
+        {
+            DeleteOrderItemButton.IsEnabled = OrderItemsGrid.SelectedValue is int;
+        }
+    }
+
     private void OrdersGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (e.Source != OrdersGrid)
@@ -124,10 +208,14 @@ public partial class OrdersWindow : Window
             return;
         }
 
-        DeleteOrderButton.IsEnabled = OrdersGrid.SelectedValue is int;
+        var order = OrdersGrid.SelectedItem as OrderSummary;
+        DeleteOrderButton.IsEnabled = order is not null;
+        OrderEditPanel.IsEnabled = order is not null;
+        OrderDatePicker.SelectedDate = order?.OrderDate.ToDateTime(TimeOnly.MinValue);
+        DeleteOrderItemButton.IsEnabled = false;
         OrderItemsGrid.ItemsSource = null;
 
-        if (OrdersGrid.SelectedValue is not int orderId)
+        if (order is null)
         {
             OrderTotalText.Text = "Выбери заказ в верхней таблице.";
             return;
@@ -142,10 +230,11 @@ public partial class OrdersWindow : Window
                 join product in db.Products on item.ProductId equals product.ProductId
                 join manufacturer in db.Manufacturers on product.ManufacturerId equals manufacturer.ManufacturerId
                 join size in db.Sizes on item.SizeId equals size.SizeId
-                where item.OrderId == orderId
+                where item.OrderId == order.OrderId
                 orderby item.OrderItemId
                 select new
                 {
+                    item.OrderItemId,
                     product.ProductName,
                     manufacturer.ManufacturerName,
                     size.SizeValue,
@@ -164,4 +253,6 @@ public partial class OrdersWindow : Window
             _messages.ShowErr("Не удалось загрузить позиции заказа. Проверь подключение к базе и повтори попытку.");
         }
     }
+
+    private sealed record OrderSummary(int OrderId, DateOnly OrderDate, string CustomerName);
 }

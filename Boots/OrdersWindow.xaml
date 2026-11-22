@@ -42,12 +42,16 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Text="Состав заказа" FontWeight="SemiBold" Margin="0,0,0,6"/>
 
             <DataGrid x:Name="OrderItemsGrid"
                       Grid.Row="1"
+                      SelectionMode="Single"
+                      SelectedValuePath="OrderItemId"
+                      SelectionChanged="OrderItemsGrid_SelectionChanged"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
                       CanUserAddRows="False"
@@ -68,6 +72,22 @@
                        Text="Выбери заказ в верхней таблице."
                        FontWeight="SemiBold"
                        Margin="0,8,0,0"/>
+
+            <WrapPanel x:Name="OrderEditPanel" Grid.Row="3" Margin="0,12,0,0"
+                       Visibility="Collapsed" IsEnabled="False">
+                <DatePicker x:Name="OrderDatePicker"
+                            Language="ru-RU" Width="130"
+                            Margin="0,0,8,6"
+                            AutomationProperties.Name="Дата заказа"/>
+                <Button Content="Сохранить дату"
+                        Margin="0,0,12,6" Padding="12,4"
+                        Click="SaveDate_Click"/>
+                <Button x:Name="DeleteOrderItemButton"
+                        Content="Удалить позицию"
+                        Margin="0,0,0,6" Padding="12,4"
+                        IsEnabled="False"
+                        Click="DeleteOrderItem_Click"/>
+            </WrapPanel>
         </Grid>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal"

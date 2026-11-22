@@ -1,3 +1,4 @@
+using Boots.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Boots.Data;
@@ -8,15 +9,7 @@ internal static class OrderDeletion
     {
         using var transaction = db.Database.BeginTransaction();
 
-        // A second delete must wait for this order before it can return its stock.
-        var order = db.Orders
-            .FromSqlInterpolated($"""
-                SELECT OrderId, OrderDate, UserId
-                FROM dbo.Orders WITH (UPDLOCK, HOLDLOCK)
-                WHERE OrderId = {orderId}
-                """)
-            .SingleOrDefault();
-
+        var order = GetOrderForUpdate(db, orderId);
         if (order is null)
         {
             return false;
@@ -29,34 +22,7 @@ internal static class OrderDeletion
 
         foreach (var group in stockToReturn)
         {
-            var quantity = group.Sum(item => item.Quantity);
-            if (quantity <= 0)
-            {
-                throw new InvalidOperationException("В заказе указано некорректное количество пар.");
-            }
-
-            var stock = db.StockItems
-                .FromSqlInterpolated($"""
-                    SELECT StockItemId, ProductId, SizeId, AvailableQuantity
-                    FROM dbo.StockItems WITH (UPDLOCK, HOLDLOCK)
-                    WHERE ProductId = {group.Key.ProductId} AND SizeId = {group.Key.SizeId}
-                    """)
-                .OrderBy(item => item.StockItemId)
-                .FirstOrDefault();
-
-            if (stock is null)
-            {
-                db.StockItems.Add(new Models.StockItems
-                {
-                    ProductId = group.Key.ProductId,
-                    SizeId = group.Key.SizeId,
-                    AvailableQuantity = quantity
-                });
-            }
-            else
-            {
-                stock.AvailableQuantity = checked(stock.AvailableQuantity + quantity);
-            }
+            ReturnStock(db, group.Key.ProductId, group.Key.SizeId, group.Sum(item => item.Quantity));
         }
 
         db.OrderItems.RemoveRange(items);
@@ -67,5 +33,48 @@ internal static class OrderDeletion
 
         transaction.Commit();
         return true;
+    }
+
+    internal static Orders? GetOrderForUpdate(AppDBContext db, int orderId)
+    {
+        // Order-level locking keeps edits and deletions from returning the same stock twice.
+        return db.Orders
+            .FromSqlInterpolated($"""
+                SELECT OrderId, OrderDate, UserId
+                FROM dbo.Orders WITH (UPDLOCK, HOLDLOCK)
+                WHERE OrderId = {orderId}
+                """)
+            .SingleOrDefault();
+    }
+
+    internal static void ReturnStock(AppDBContext db, int productId, int sizeId, int quantity)
+    {
+        if (quantity <= 0)
+        {
+            throw new InvalidOperationException("В заказе указано некорректное количество пар.");
+        }
+
+        var stock = db.StockItems
+            .FromSqlInterpolated($"""
+                SELECT StockItemId, ProductId, SizeId, AvailableQuantity
+                FROM dbo.StockItems WITH (UPDLOCK, HOLDLOCK)
+                WHERE ProductId = {productId} AND SizeId = {sizeId}
+                """)
+            .OrderBy(item => item.StockItemId)
+            .FirstOrDefault();
+
+        if (stock is null)
+        {
+            db.StockItems.Add(new StockItems
+            {
+                ProductId = productId,
+                SizeId = sizeId,
+                AvailableQuantity = quantity
+            });
+        }
+        else
+        {
+            stock.AvailableQuantity = checked(stock.AvailableQuantity + quantity);
+        }
     }
 }
