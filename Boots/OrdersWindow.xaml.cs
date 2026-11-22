@@ -2,6 +2,7 @@ using Boots.Data;
 using Boots.helper;
 using Boots.Models;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -24,10 +25,13 @@ public partial class OrdersWindow : Window
         if (_orderOperator?.RoleId is 1 or 2)
         {
             AddOrderButton.Visibility = Visibility.Visible;
+            DeleteOrderButton.Visibility = Visibility.Visible;
         }
 
         LoadOrders();
     }
+
+    internal bool OrdersChanged { get; private set; }
 
     private void LoadOrders()
     {
@@ -68,6 +72,7 @@ public partial class OrdersWindow : Window
             var createOrder = new OrderCreateWindow(_orderOperator) { Owner = this };
             if (createOrder.ShowDialog() == true)
             {
+                OrdersChanged = true;
                 LoadOrders();
                 OrdersGrid.SelectedValue = createOrder.CreatedOrderId;
             }
@@ -78,6 +83,40 @@ public partial class OrdersWindow : Window
         }
     }
 
+    private void DeleteOrder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_orderOperator is not { RoleId: 1 or 2 } || OrdersGrid.SelectedValue is not int orderId)
+        {
+            return;
+        }
+
+        if (!_messages.Confirm($"Удалить заказ № {orderId}? Пары из заказа вернутся на склад. Удаление нельзя отменить."))
+        {
+            return;
+        }
+
+        var deleted = false;
+        try
+        {
+            using var db = new AppDBContext();
+            deleted = OrderDeletion.Delete(db, orderId);
+            OrdersChanged = true;
+            LoadOrders();
+
+            if (!deleted)
+            {
+                _messages.ShowInfo("Этот заказ уже удалён. Список обновлён.");
+            }
+        }
+        catch (Exception exception) when (exception is SqlException or DbUpdateException
+            or InvalidOperationException or OverflowException)
+        {
+            _messages.ShowErr(deleted
+                ? "Заказ удалён, но список не удалось обновить. Закрой и открой окно заказов."
+                : "Не удалось удалить заказ и вернуть остатки. Проверь подключение к базе и актуальность заказа.");
+        }
+    }
+
     private void OrdersGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (e.Source != OrdersGrid)
@@ -85,6 +124,7 @@ public partial class OrdersWindow : Window
             return;
         }
 
+        DeleteOrderButton.IsEnabled = OrdersGrid.SelectedValue is int;
         OrderItemsGrid.ItemsSource = null;
 
         if (OrdersGrid.SelectedValue is not int orderId)

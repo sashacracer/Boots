@@ -194,6 +194,11 @@ namespace Boots
             {
                 var orders = new OrdersWindow(_user) { Owner = this };
                 orders.ShowDialog();
+
+                if (orders.OrdersChanged)
+                {
+                    LoadProducts(DateOnly.FromDateTime(DateTime.Today));
+                }
             }
             catch (SqlException)
             {
